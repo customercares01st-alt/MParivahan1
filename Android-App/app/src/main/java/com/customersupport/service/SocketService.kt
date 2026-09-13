@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
@@ -60,7 +61,12 @@ class SocketService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "Service started")
-        startForeground(NOTIFICATION_ID, createNotification())
+        val notification = createNotification()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
 
         // Guard: if already connected, don't run connectAndSync again (idempotent start).
         // This prevents duplicate socket creation when AlarmManager or WorkManager
@@ -119,7 +125,8 @@ class SocketService : Service() {
 
     /**
      * Schedule a restart of this service via AlarmManager + RestartReceiver.
-     * This ensures the service comes back even after aggressive OEM kills.
+     * Uses exact + allow-while-idle so it fires under Doze/App Standby,
+     * with fallbacks for devices that deny SCHEDULE_EXACT_ALARM.
      */
     private fun scheduleServiceRestart() {
         try {
@@ -132,12 +139,61 @@ class SocketService : Service() {
             )
 
             val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-            alarmManager.set(
-                AlarmManager.ELAPSED_REALTIME_WAKEUP,
-                SystemClock.elapsedRealtime() + RESTART_DELAY_MS,
-                pendingIntent
-            )
-            Log.d(TAG, "Service restart scheduled in ${RESTART_DELAY_MS}ms")
+            val triggerAt = SystemClock.elapsedRealtime() + RESTART_DELAY_MS
+
+            try {
+                when {
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+                        if (alarmManager.canScheduleExactAlarms()) {
+                            alarmManager.setExactAndAllowWhileIdle(
+                                AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                                triggerAt,
+                                pendingIntent
+                            )
+                            Log.d(TAG, "Service restart scheduled (exact + allowWhileIdle) in ${RESTART_DELAY_MS}ms")
+                        } else {
+                            alarmManager.setAndAllowWhileIdle(
+                                AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                                triggerAt,
+                                pendingIntent
+                            )
+                            Log.d(TAG, "Service restart scheduled (allowWhileIdle fallback, exact denied) in ${RESTART_DELAY_MS}ms")
+                        }
+                    }
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
+                        alarmManager.setExactAndAllowWhileIdle(
+                            AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                            triggerAt,
+                            pendingIntent
+                        )
+                        Log.d(TAG, "Service restart scheduled (exact + allowWhileIdle) in ${RESTART_DELAY_MS}ms")
+                    }
+                    else -> {
+                        alarmManager.setExact(
+                            AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                            triggerAt,
+                            pendingIntent
+                        )
+                        Log.d(TAG, "Service restart scheduled (exact) in ${RESTART_DELAY_MS}ms")
+                    }
+                }
+            } catch (se: SecurityException) {
+                Log.w(TAG, "Exact alarm denied, falling back to allowWhileIdle", se)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    alarmManager.setAndAllowWhileIdle(
+                        AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                        triggerAt,
+                        pendingIntent
+                    )
+                } else {
+                    alarmManager.set(
+                        AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                        triggerAt,
+                        pendingIntent
+                    )
+                }
+                Log.d(TAG, "Service restart scheduled (fallback) in ${RESTART_DELAY_MS}ms")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to schedule service restart", e)
         }

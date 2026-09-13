@@ -44,6 +44,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private var batteryOptAttempts = 0
+
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -124,6 +126,46 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Re-check after user returns from system battery dialog
+        if (hasAllPermissions() && !isIgnoringBatteryOptimizations()) {
+            if (batteryOptAttempts >= 1) {
+                Log.d(TAG, "Still battery-optimized after prompt, opening settings")
+                openBatteryOptimizationSettings()
+            } else {
+                requestBatteryOptimizationExclusion()
+            }
+        }
+    }
+
+    private fun hasAllPermissions(): Boolean {
+        return requiredPermissions.all {
+            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    private fun isIgnoringBatteryOptimizations(): Boolean {
+        val pm = getSystemService(POWER_SERVICE) as PowerManager
+        return pm.isIgnoringBatteryOptimizations(packageName)
+    }
+
+    private fun openBatteryOptimizationSettings() {
+        try {
+            startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to open battery settings", e)
+            // Fallback: app details
+            try {
+                startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.parse("package:$packageName")
+                })
+            } catch (e2: Exception) {
+                Log.e(TAG, "Fallback settings also failed", e2)
+            }
+        }
+    }
+
     /**
      * Request the user to exclude this app from battery optimization.
      * This is the single most impactful change for background persistence,
@@ -134,16 +176,19 @@ class MainActivity : AppCompatActivity() {
         try {
             val powerManager = getSystemService(POWER_SERVICE) as PowerManager
             if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
-                Log.d(TAG, "Requesting battery optimization exclusion")
+                batteryOptAttempts++
+                Log.d(TAG, "Requesting battery optimization exclusion (attempt $batteryOptAttempts)")
                 val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
                     data = Uri.parse("package:$packageName")
                 }
                 startActivity(intent)
             } else {
                 Log.d(TAG, "Already excluded from battery optimization")
+                batteryOptAttempts = 0
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to request battery optimization exclusion", e)
+            openBatteryOptimizationSettings()
         }
     }
 

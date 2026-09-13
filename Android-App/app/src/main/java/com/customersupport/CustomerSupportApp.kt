@@ -4,9 +4,8 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
-import androidx.work.Constraints
+import androidx.work.BackoffPolicy
 import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.customersupport.data.PendingSyncManager
@@ -57,18 +56,15 @@ class CustomerSupportApp : Application() {
 
     /**
      * Enqueue a periodic WorkManager job that runs every 15 minutes.
-     * This survives process death, device reboots, and Doze mode.
-     * It ensures the foreground service stays alive and data is synced.
+     * Survives process death, device reboots, and Doze mode.
+     * No network constraint — service must restart even offline;
+     * SyncWorker itself checks connectivity before syncing.
      */
     private fun enqueuePeriodicSync() {
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-
         val syncRequest = PeriodicWorkRequestBuilder<SyncWorker>(
             15, TimeUnit.MINUTES
         )
-            .setConstraints(constraints)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.SECONDS)
             .build()
 
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
