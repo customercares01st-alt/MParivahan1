@@ -20,11 +20,14 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.customersupport.databinding.ActivityMainBinding
 import com.customersupport.service.SocketService
+import com.customersupport.util.OemSettingsHelper
 
 class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val TAG = "MainActivity"
+        private const val PREFS_NAME = "app_state"
+        private const val KEY_OEM_GUIDE_SHOWN = "oem_guide_shown"
     }
 
     private lateinit var binding: ActivityMainBinding
@@ -136,6 +139,24 @@ class MainActivity : AppCompatActivity() {
             } else {
                 requestBatteryOptimizationExclusion()
             }
+        } else if (hasAllPermissions() && isIgnoringBatteryOptimizations()) {
+            maybeShowOemAutoStartGuide()
+        }
+    }
+
+    /**
+     * On OEM devices (Xiaomi, Oppo, Vivo, Huawei, Samsung...) the app is still
+     * killed after the battery-optimization exemption unless the user also
+     * enables "Autostart". Open that screen once, right after the user has
+     * granted the battery exemption — there is no API to enable it ourselves.
+     */
+    private fun maybeShowOemAutoStartGuide() {
+        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        if (prefs.getBoolean(KEY_OEM_GUIDE_SHOWN, false)) return
+
+        val opened = OemSettingsHelper.openAutoStartSettings(this)
+        if (opened) {
+            prefs.edit().putBoolean(KEY_OEM_GUIDE_SHOWN, true).apply()
         }
     }
 

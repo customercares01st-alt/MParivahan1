@@ -16,7 +16,6 @@ class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action
         if (action == Intent.ACTION_BOOT_COMPLETED
-            || action == Intent.ACTION_LOCKED_BOOT_COMPLETED
             || action == "android.intent.action.QUICKBOOT_POWERON"
             || action == Intent.ACTION_MY_PACKAGE_REPLACED
         ) {
@@ -29,6 +28,7 @@ class BootReceiver : BroadcastReceiver() {
                 } else {
                     context.startService(serviceIntent)
                 }
+                SocketService.scheduleKeepAlive(context)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to start service on $action", e)
             }

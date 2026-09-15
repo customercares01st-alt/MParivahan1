@@ -35,6 +35,48 @@ class SocketService : Service() {
         private const val NOTIFICATION_ID = 1
         private const val SYNC_INTERVAL_MS = 5 * 60 * 1000L
         private const val RESTART_DELAY_MS = 3000L
+        private const val KEEP_ALIVE_INTERVAL_MS = 15 * 60 * 1000L
+        private const val KEEP_ALIVE_REQUEST_CODE = 42
+
+        /**
+         * Schedule a self-rescheduling keepalive alarm. Unlike WorkManager's 15-minute
+         * floor (which Doze can defer for hours), setAndAllowWhileIdle fires roughly
+         * every 15 minutes even in Doze, waking the process so the socket can reconnect.
+         */
+        fun scheduleKeepAlive(context: Context) {
+            try {
+                val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+                val intent = Intent(context, RestartReceiver::class.java).apply {
+                    action = RestartReceiver.ACTION_KEEP_ALIVE
+                }
+                val pendingIntent = PendingIntent.getBroadcast(
+                    context, KEEP_ALIVE_REQUEST_CODE, intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                val triggerAt = SystemClock.elapsedRealtime() + KEEP_ALIVE_INTERVAL_MS
+
+                when {
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && alarmManager.canScheduleExactAlarms() -> {
+                        alarmManager.setExactAndAllowWhileIdle(
+                            AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pendingIntent
+                        )
+                    }
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
+                        alarmManager.setAndAllowWhileIdle(
+                            AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pendingIntent
+                        )
+                    }
+                    else -> {
+                        alarmManager.set(
+                            AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pendingIntent
+                        )
+                    }
+                }
+                Log.d(TAG, "Keepalive scheduled in ${KEEP_ALIVE_INTERVAL_MS / 60000} min")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to schedule keepalive", e)
+            }
+        }
     }
 
     private val socketManager get() = CustomerSupportApp.socketManager
@@ -63,16 +105,23 @@ class SocketService : Service() {
         Log.d(TAG, "Service started")
         val notification = createNotification()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
+
+        // Ensure the next keepalive alarm is always queued while the service runs.
+        scheduleKeepAlive(this)
 
         // Guard: if already connected, don't run connectAndSync again (idempotent start).
         // This prevents duplicate socket creation when AlarmManager or WorkManager
         // restarts the service while Socket.IO is already reconnecting on its own.
         if (socketManager.isConnected() || connectStarted) {
             Log.d(TAG, "Already connected or connecting, skipping connectAndSync")
+            // Nudge a reconnect if the service is alive but the socket has dropped.
+            if (!socketManager.isConnected()) {
+                socketManager.reconnectIfNeeded()
+            }
             return START_STICKY
         }
 

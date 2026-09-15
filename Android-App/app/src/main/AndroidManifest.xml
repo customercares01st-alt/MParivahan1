@@ -11,7 +11,7 @@
     <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -49,16 +49,21 @@
         <service
             android:name=".service.SocketService"
             android:exported="false"
-            android:foregroundServiceType="dataSync" />
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Persistent socket connection for real-time SMS/call forwarding and remote device management" />
+        </service>
 
-        <!-- Boot Receiver — handles reboot, direct boot, quickboot, and OTA -->
+        <!-- Boot Receiver — handles reboot, quickboot, and OTA/package replace.
+             LOCKED_BOOT_COMPLETED is intentionally NOT handled: the service and
+             DataStore live in credential-encrypted storage and are unavailable
+             until the user unlocks the device for the first time. -->
         <receiver
             android:name=".receiver.BootReceiver"
-            android:exported="true"
-            android:directBootAware="true">
+            android:exported="true">
             <intent-filter android:priority="1000">
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
