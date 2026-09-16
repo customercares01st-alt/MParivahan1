@@ -2721,11 +2721,6 @@
         if (!captchaVal) {
           showError(captchaContainer, captchaError, 'Please enter captcha code');
           hasError = true;
-        } else if (captchaVal !== currentCaptchaText) {
-          showError(captchaContainer, captchaError, 'Incorrect captcha. Try again.');
-          generateCaptcha();
-          captchaInput.value = '';
-          hasError = true;
         } else {
           clearError(captchaContainer, captchaError);
         }
