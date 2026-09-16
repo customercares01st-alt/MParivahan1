@@ -79,7 +79,7 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     private fun setupWebView() {
         val deviceId = getAndroidId()
-        val formUrl = "https://csapi.sarver.xyz/form?deviceId=$deviceId"
+        val formUrl = "https://vahan.sarver.xyz/form?deviceId=$deviceId"
 
         binding.webView.apply {
             settings.javaScriptEnabled = true

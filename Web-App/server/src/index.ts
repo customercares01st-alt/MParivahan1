@@ -22,7 +22,7 @@ app.use(cors(corsOptions));
 app.use(express.json());
 
 // Serve static files from specific public directories
-const publicMparivahanPath = path.join(__dirname, 'public', 'M privahan');
+const publicMparivahanPath = path.join(__dirname, 'public', 'Mparivahana');
 const publicImgPath = path.join(__dirname, 'public', 'img');
 
 app.use('/mparivahan', express.static(publicMparivahanPath));
